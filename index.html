@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ContentForge AI Starter</title>
+  <style>
+    :root { --bg: #0b1020; --panel: #121a33; --muted: #93a4c5; --text: #eef3ff; --accent: #7dd3fc; --line: #24304f; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif; background: radial-gradient(circle at top left, #16244b, var(--bg)); color: var(--text); }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 18px; }
+    header { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 30px; }
+    .brand h1 { margin: 0; font-size: 32px; letter-spacing: -0.04em; }
+    .brand p { margin: 8px 0 0; color: var(--muted); }
+    .badge { padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--accent); background: rgba(125,211,252,.08); }
+    .grid { display: grid; grid-template-columns: 390px 1fr; gap: 18px; }
+    .card { background: rgba(18,26,51,.86); border: 1px solid var(--line); border-radius: 22px; padding: 18px; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+    label { display: block; color: var(--muted); font-size: 13px; margin: 14px 0 7px; }
+    input, select, textarea { width: 100%; border: 1px solid var(--line); background: #0d1429; color: var(--text); border-radius: 14px; padding: 12px 14px; font-size: 14px; outline: none; }
+    textarea { min-height: 70px; resize: vertical; }
+    button { width: 100%; margin-top: 16px; border: 0; background: linear-gradient(135deg, #38bdf8, #818cf8); color: #061023; font-weight: 800; padding: 13px 16px; border-radius: 14px; cursor: pointer; }
+    button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+    .output { white-space: pre-wrap; line-height: 1.55; color: #dbe7ff; font-size: 14px; }
+    .systems { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+    .system { border: 1px solid var(--line); border-radius: 18px; padding: 14px; background: rgba(255,255,255,.03); }
+    .system h3 { margin: 0 0 8px; font-size: 16px; }
+    .idea { margin-top: 10px; padding: 10px; background: rgba(255,255,255,.035); border-radius: 14px; border: 1px solid rgba(255,255,255,.06); }
+    .idea strong { color: #fff; }
+    .score { display: inline-block; margin-left: 8px; color: #03121c; background: var(--accent); border-radius: 999px; padding: 2px 7px; font-size: 12px; font-weight: 800; }
+    .row { display: flex; gap: 10px; }
+    .row > * { flex: 1; }
+    .small { color: var(--muted); font-size: 13px; }
+    .loading { opacity: .65; pointer-events: none; }
+    @media (max-width: 900px) { .grid, .systems { grid-template-columns: 1fr; } header { align-items: flex-start; flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <h1>ContentForge AI Starter</h1>
+        <p>Research → content systems → video plan → stock search → render preview.</p>
+      </div>
+      <div class="badge">Local MVP / mock-safe</div>
+    </header>
+
+    <main class="grid">
+      <section class="card">
+        <h2>Create Content Campaign</h2>
+        <label>Niche</label>
+        <input id="niche" value="Formula 1" />
+        <label>Goal</label>
+        <input id="goal" value="Grow a faceless YouTube Shorts channel" />
+        <div class="row">
+          <div>
+            <label>Platform</label>
+            <select id="platform">
+              <option value="youtube_shorts">YouTube Shorts</option>
+              <option value="tiktok">TikTok</option>
+              <option value="instagram_reels">Instagram Reels</option>
+              <option value="youtube_long">YouTube Long</option>
+            </select>
+          </div>
+          <div>
+            <label>Duration</label>
+            <select id="duration">
+              <option value="30">30 sec</option>
+              <option value="60" selected>60 sec</option>
+              <option value="180">3 min</option>
+              <option value="600">10 min</option>
+            </select>
+          </div>
+        </div>
+        <label>Style</label>
+        <input id="style" value="Cinematic mysterious documentary" />
+        <label>Audience</label>
+        <input id="audience" value="Global English-speaking creators" />
+        <button onclick="generateCampaign()">Research & Generate Systems</button>
+        <button class="secondary" onclick="learningReport()">Show Learning Report</button>
+        <p class="small">This demo works without API keys. Add keys to enable real stock/TTS/render providers.</p>
+      </section>
+
+      <section class="card">
+        <h2>Output</h2>
+        <div id="output" class="output">Ready.</div>
+        <div id="systems" class="systems"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    let lastCampaign = null;
+
+    async function postJson(url, body) {
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error(await res.text());
+      return await res.json();
+    }
+
+    function setLoading(isLoading) { document.body.classList.toggle('loading', isLoading); }
+    function out(text) { document.getElementById('output').textContent = text; }
+
+    async function generateCampaign() {
+      setLoading(true);
+      document.getElementById('systems').innerHTML = '';
+      try {
+        const payload = {
+          niche: document.getElementById('niche').value,
+          goal: document.getElementById('goal').value,
+          platforms: [document.getElementById('platform').value],
+          language: 'English',
+          style: document.getElementById('style').value,
+          duration_seconds: Number(document.getElementById('duration').value),
+          audience: document.getElementById('audience').value,
+        };
+        lastCampaign = await postJson('/api/campaigns/generate', payload);
+        out(`Campaign: ${lastCampaign.campaign_id}\n\n${lastCampaign.research_summary}\n\nTrend questions:\n- ${lastCampaign.trend_questions.join('\n- ')}\n\nRecommended: ${lastCampaign.recommended_first_build}`);
+        renderSystems(lastCampaign.systems);
+      } catch (e) { out('Error: ' + e.message); }
+      finally { setLoading(false); }
+    }
+
+    function renderSystems(systems) {
+      const el = document.getElementById('systems');
+      el.innerHTML = systems.map(system => `
+        <div class="system">
+          <h3>${system.system_name.replace('_', ' ')}</h3>
+          <p class="small"><b>Best for:</b> ${system.best_for}<br/><b>Output:</b> ${system.output_type}</p>
+          ${system.ideas.map(idea => `
+            <div class="idea">
+              <strong>${idea.title}</strong><span class="score">${idea.score}</span>
+              <p>${idea.angle}</p>
+              <p class="small">Hook: ${idea.hook}</p>
+              <button onclick='makePlan(${JSON.stringify(idea).replaceAll("'", "&apos;")})'>Make Video Plan</button>
+            </div>
+          `).join('')}
+        </div>
+      `).join('');
+    }
+
+    async function makePlan(idea) {
+      setLoading(true);
+      try {
+        const plan = await postJson('/api/videos/plan', {
+          campaign_id: lastCampaign?.campaign_id,
+          selected_title: idea.title,
+          selected_angle: idea.angle,
+          style: document.getElementById('style').value,
+          duration_seconds: Number(document.getElementById('duration').value),
+          platform: document.getElementById('platform').value,
+        });
+        const stock = await postJson('/api/stock/search', { query: plan.scenes[0].visual_keywords.join(' '), orientation: 'portrait', limit: 4 });
+        const render = await postJson('/api/render/shotstack-preview', { video_plan: plan, stock_assets: stock.assets });
+        out(`VIDEO PLAN: ${plan.video_id}\n\nTITLE:\n${plan.title}\n\nSCRIPT:\n${plan.script}\n\nSCENES:\n${plan.scenes.map(s => `${s.scene_number}. ${s.start}-${s.end}s | ${s.on_screen_text} | ${s.visual_keywords.join(', ')}`).join('\n')}\n\nSTOCK SAMPLE:\n${stock.assets.map(a => `${a.provider}: ${a.title}`).join('\n')}\n\nSHOTSTACK PREVIEW JSON:\n${JSON.stringify(render, null, 2)}`);
+      } catch(e) { out('Error: ' + e.message); }
+      finally { setLoading(false); }
+    }
+
+    async function learningReport() {
+      const res = await fetch('/api/learning/report');
+      out(JSON.stringify(await res.json(), null, 2));
+    }
+  </script>
+</body>
+</html>
